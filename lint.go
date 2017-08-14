@@ -164,11 +164,17 @@ func (l *lint) collectPackagesAndFiles() error {
 		}
 		name := info.Name()
 		if strings.HasPrefix(name, "_") || strings.HasPrefix(name, ".") {
-			return filepath.SkipDir
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		name = strings.ToLower(name)
 		if name == "vendor" || name == "testdata" {
-			return filepath.SkipDir
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if strings.HasSuffix(name, ".go") {
 			pkg, relErr := filepath.Rel(l.goSrcPath, filepath.Dir(path))
