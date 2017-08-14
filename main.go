@@ -3,12 +3,11 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
+	"github.com/nightlyone/lockfile"
 	"github.com/richardwilkes/atexit"
 	"github.com/richardwilkes/cmdline"
 )
@@ -54,31 +53,18 @@ func main() {
 	}
 
 	if onlyOne {
-		for {
-			lockFile := filepath.Join(l.repoPath, ".dirtlock")
-			if f, err := os.OpenFile(lockFile, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0666); err == nil {
-				fmt.Fprint(f, os.Getpid())
-				if err = f.Close(); err != nil {
-					fmt.Printf("Unable to write lock file: %s\n", lockFile)
-					atexit.Exit(1)
-				}
-				atexit.Register(func() {
-					if os.Remove(lockFile) != nil {
-						fmt.Printf("Unable to remove lock file: %s\n", lockFile)
-					}
-				})
-				break
-			} else {
-				if data, err := ioutil.ReadFile(lockFile); err == nil {
-					if pid, err := strconv.Atoi(string(data)); err == nil {
-						if p, err := os.FindProcess(pid); err == nil {
-							p.Kill()
-						}
-						os.Remove(lockFile)
-					}
-				}
+		path := filepath.Join(l.repoPath, ".dirtlock")
+		lf, err := lockfile.New(path)
+		if err != nil {
+			fmt.Println("Unable to obtain lock file: ", path)
+			atexit.Exit(1)
+		}
+		for lf.TryLock() != nil {
+			if p, err := lf.GetOwner(); err == nil {
+				p.Kill()
 			}
 		}
+		atexit.Register(func() { lf.Unlock() })
 	}
 
 	atexit.Exit(l.run(timeout))
