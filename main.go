@@ -21,6 +21,7 @@ func main() {
 	timeout := 5 * time.Minute
 	fastOnly := false
 	onlyOne := false
+	forceInstall := false
 
 	var buffer bytes.Buffer
 	buffer.WriteString(`Run linting checks against Go code. Two groups of linters are executed, a "fast" group and a "slow" group. The fast group consists of `)
@@ -28,25 +29,32 @@ func main() {
 		if i != 0 {
 			buffer.WriteString(", ")
 		}
-		buffer.WriteString(linterName(one))
+		buffer.WriteString(one.Name())
 	}
 	buffer.WriteString(`. The slow group consists of `)
 	for i, one := range SlowLinters {
 		if i != 0 {
 			buffer.WriteString(", ")
 		}
-		buffer.WriteString(linterName(one))
+		buffer.WriteString(one.Name())
 	}
 	buffer.WriteByte('.')
 
 	cl := cmdline.New(true)
 	cl.Description = buffer.String()
 	cl.NewDurationOption(&timeout).SetSingle('t').SetName("timeout").SetArg("duration").SetUsage("Sets the timeout. If the linters run longer than this, they will be terminated and an error will be returned")
-	cl.NewBoolOption(&fastOnly).SetSingle('f').SetName("fastonly").SetUsage("When set, only the fast linters are run")
+	cl.NewBoolOption(&fastOnly).SetSingle('f').SetName("fast-only").SetUsage("When set, only the fast linters are run")
 	cl.NewBoolOption(&onlyOne).SetSingle('1').SetName("one").SetUsage("When set, only the last started invocation for the repo will complete; any others will be terminated")
+	cl.NewBoolOption(&forceInstall).SetSingle('F').SetName("force-install").SetUsage("When set, the linters will be reinstalled")
 	cl.Parse(os.Args[1:])
 
-	l, err := newLint(".", linters(fastOnly))
+	selected := selectLinters(fastOnly)
+	if forceInstall {
+		for _, one := range selected {
+			one.Install(true)
+		}
+	}
+	l, err := newLint(".", selected)
 	if err != nil {
 		fmt.Println(err)
 		atexit.Exit(1)

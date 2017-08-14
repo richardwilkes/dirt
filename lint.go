@@ -18,34 +18,6 @@ import (
 	"github.com/richardwilkes/fileutil"
 )
 
-// Argument substitution constants
-const (
-	REPO  = "@repo"
-	PKGS  = "@pkgs"
-	DIRS  = "@dirs"
-	FILES = "@files"
-)
-
-var (
-	// FastLinters holds the linters that are known to execute quickly.
-	FastLinters = [][]string{
-		{"gofmt", "-l", "-s", FILES},
-		{"goimports", "-l", FILES},
-		{"golint", PKGS},
-		{"ineffassign", REPO},
-		{"misspell", "-locale", "US", FILES},
-		{"go", "tool", "vet", "-all", "-shadow", DIRS},
-	}
-	// SlowLinters holds the linters that are known to execute quickly.
-	SlowLinters = [][]string{
-		{"megacheck", PKGS},
-		{"errchk", "-abspath", "-blank", "-asserts", "-ignore", "github.com/richardwilkes/errs:Append", PKGS},
-		{"interfacer", PKGS},
-		{"unconvert", PKGS},
-		{"structcheck", PKGS},
-	}
-)
-
 type lint struct {
 	origPath  string
 	goSrcPath string
@@ -53,7 +25,7 @@ type lint struct {
 	pkgs      []string
 	dirs      []string
 	files     []string
-	linters   [][]string
+	linters   []linter
 	status    int32
 	lineChan  chan problem
 	doneChan  chan bool
@@ -64,26 +36,7 @@ type problem struct {
 	output string
 }
 
-func linters(fastOnly bool) [][]string {
-	var list [][]string
-	if fastOnly {
-		list = FastLinters
-	} else {
-		list = make([][]string, len(FastLinters)+len(SlowLinters))
-		copy(list, FastLinters)
-		copy(list[len(FastLinters):], SlowLinters)
-	}
-	return list
-}
-
-func linterName(args []string) string {
-	if args[0] == "go" {
-		return args[2]
-	}
-	return args[0]
-}
-
-func newLint(basePath string, lintersToRun [][]string) (*lint, error) {
+func newLint(basePath string, lintersToRun []linter) (*lint, error) {
 	l := &lint{
 		linters:  lintersToRun,
 		lineChan: make(chan problem, 16),
@@ -102,8 +55,8 @@ func (l *lint) run(timeout time.Duration) int {
 	go l.parseLines()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	for _, args := range l.linters {
-		l.execLinter(ctx, args)
+	for _, one := range l.linters {
+		l.execLinter(ctx, one)
 		if ctx.Err() == context.DeadlineExceeded {
 			break
 		}
@@ -197,9 +150,9 @@ func (l *lint) collectPackagesAndFiles() error {
 	return nil
 }
 
-func (l *lint) argSubstitution(args []string) []string {
-	result := make([]string, 0, len(args))
-	for _, arg := range args {
+func (l *lint) argSubstitution(lntr linter) []string {
+	result := make([]string, 0, len(lntr.args))
+	for _, arg := range lntr.args {
 		switch arg {
 		case REPO:
 			result = append(result, l.repoPath)
@@ -223,10 +176,10 @@ func (l *lint) parseLines() {
 	l.doneChan <- true
 }
 
-func (l *lint) execLinter(ctx context.Context, args []string) {
-	args = l.argSubstitution(args)
-	prefix := linterName(args)
-	cc := exec.CommandContext(ctx, args[0], args[1:]...)
+func (l *lint) execLinter(ctx context.Context, lntr linter) {
+	lntr.Install(false)
+	prefix := lntr.Name()
+	cc := exec.CommandContext(ctx, lntr.cmd, l.argSubstitution(lntr)...)
 
 	stdout, err := cc.StdoutPipe()
 	if err != nil {
