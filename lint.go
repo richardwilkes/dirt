@@ -22,6 +22,7 @@ import (
 const (
 	REPO  = "@repo"
 	PKGS  = "@pkgs"
+	DIRS  = "@dirs"
 	FILES = "@files"
 )
 
@@ -33,7 +34,7 @@ var (
 		{"golint", PKGS},
 		{"ineffassign", REPO},
 		{"misspell", "-locale", "US", FILES},
-		{"go", "tool", "vet", "-all", "-shadow", FILES},
+		{"go", "tool", "vet", "-all", "-shadow", DIRS},
 	}
 	// SlowLinters holds the linters that are known to execute quickly.
 	SlowLinters = [][]string{
@@ -50,6 +51,7 @@ type lint struct {
 	goSrcPath string
 	repoPath  string
 	pkgs      []string
+	dirs      []string
 	files     []string
 	linters   [][]string
 	status    int32
@@ -181,8 +183,10 @@ func (l *lint) collectPackagesAndFiles() error {
 		return errs.Wrap(walkErr)
 	}
 	l.pkgs = make([]string, 0, len(pkgMap))
+	l.dirs = make([]string, 0, len(pkgMap))
 	for pkg := range pkgMap {
 		l.pkgs = append(l.pkgs, pkg)
+		l.dirs = append(l.dirs, filepath.Join(l.goSrcPath, pkg))
 	}
 	return nil
 }
@@ -195,6 +199,8 @@ func (l *lint) argSubstitution(args []string) []string {
 			result = append(result, l.repoPath)
 		case FILES:
 			result = append(result, l.files...)
+		case DIRS:
+			result = append(result, l.dirs...)
 		case PKGS:
 			result = append(result, l.pkgs...)
 		default:
