@@ -231,6 +231,9 @@ func (l *lint) processLine(line problem) {
 	if strings.Contains(output, ".pb.go") {
 		return
 	}
+	if strings.Contains(output, "mock_grpc") {
+		return
+	}
 	if strings.Contains(output, "couldn't load packages due to errors:") {
 		return
 	}
