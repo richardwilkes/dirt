@@ -187,7 +187,6 @@ func (l *lint) parseLines() {
 }
 
 func (l *lint) execLinter(ctx context.Context, lntr linter) {
-	lntr.Install(false)
 	prefix := lntr.Name()
 	cc := exec.CommandContext(ctx, lntr.cmd, l.argSubstitution(lntr)...)
 

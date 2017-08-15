@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/nightlyone/lockfile"
@@ -47,17 +48,25 @@ func main() {
 	cl.NewDurationOption(&timeout).SetSingle('t').SetName("timeout").SetArg("duration").SetUsage("Sets the timeout. If the linters run longer than this, they will be terminated and an error will be returned")
 	cl.NewBoolOption(&fastOnly).SetSingle('f').SetName("fast-only").SetUsage("When set, only the fast linters are run")
 	cl.NewBoolOption(&onlyOne).SetSingle('1').SetName("one").SetUsage("When set, only the last started invocation for the repo will complete; any others will be terminated")
-	cl.NewBoolOption(&forceInstall).SetSingle('F').SetName("force-install").SetUsage("When set, the linters will be reinstalled")
+	cl.NewBoolOption(&forceInstall).SetSingle('F').SetName("force-install").SetUsage("When set, the linters will be reinstalled, then the process will exit")
 	cl.NewStringArrayOption(&disallowedImports).SetSingle('i').SetName("disallow-import").SetArg("import").SetUsage("Treat use of the specified import as an error. May be specified multiple times")
 	cl.NewStringArrayOption(&disallowedFunctions).SetSingle('d').SetName("disallow-function").SetArg("function").SetUsage("Treat use of the specified function as an error. May be specified multiple times")
 	cl.Parse(os.Args[1:])
 
 	selected := selectLinters(fastOnly)
-	if forceInstall {
-		for _, one := range selected {
-			one.Install(true)
-		}
+	var wg sync.WaitGroup
+	for _, one := range selected {
+		wg.Add(1)
+		go func(which linter) {
+			defer wg.Done()
+			which.Install(forceInstall)
+		}(one)
 	}
+	wg.Wait()
+	if forceInstall {
+		atexit.Exit(0)
+	}
+
 	l, err := newLint(".", selected, disallowedImports, disallowedFunctions)
 	if err != nil {
 		fmt.Println(err)

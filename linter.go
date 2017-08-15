@@ -57,8 +57,9 @@ func (lntr *linter) Install(force bool) {
 			}
 		}
 		cmd := exec.Command("go", "get", "-u", lntr.pkg)
-		if err := cmd.Run(); err != nil {
+		if data, err := cmd.CombinedOutput(); err != nil {
 			fmt.Println("Unable to install", lntr.Name())
+			fmt.Println(string(data))
 			atexit.Exit(1)
 		}
 		fmt.Println("Installed", lntr.Name())
