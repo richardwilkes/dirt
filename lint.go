@@ -19,16 +19,18 @@ import (
 )
 
 type lint struct {
-	origPath  string
-	goSrcPath string
-	repoPath  string
-	pkgs      []string
-	dirs      []string
-	files     []string
-	linters   []linter
-	status    int32
-	lineChan  chan problem
-	doneChan  chan bool
+	origPath            string
+	goSrcPath           string
+	repoPath            string
+	pkgs                []string
+	dirs                []string
+	files               []string
+	linters             []linter
+	disallowedImports   []string
+	disallowedFunctions []string
+	status              int32
+	lineChan            chan problem
+	doneChan            chan bool
 }
 
 type problem struct {
@@ -36,11 +38,13 @@ type problem struct {
 	output string
 }
 
-func newLint(basePath string, lintersToRun []linter) (*lint, error) {
+func newLint(basePath string, lintersToRun []linter, disallowedImports, disallowedFunctions []string) (*lint, error) {
 	l := &lint{
-		linters:  lintersToRun,
-		lineChan: make(chan problem, 16),
-		doneChan: make(chan bool),
+		linters:             lintersToRun,
+		disallowedImports:   disallowedImports,
+		disallowedFunctions: disallowedFunctions,
+		lineChan:            make(chan problem, 16),
+		doneChan:            make(chan bool),
 	}
 	if err := l.setupPaths(basePath); err != nil {
 		return nil, err
@@ -55,6 +59,9 @@ func (l *lint) run(timeout time.Duration) int {
 	go l.parseLines()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+	if len(l.disallowedImports) > 0 || len(l.disallowedFunctions) > 0 {
+		l.checkDisallowed()
+	}
 	for _, one := range l.linters {
 		l.execLinter(ctx, one)
 		if ctx.Err() == context.DeadlineExceeded {

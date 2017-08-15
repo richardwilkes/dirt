@@ -22,6 +22,8 @@ func main() {
 	fastOnly := false
 	onlyOne := false
 	forceInstall := false
+	var disallowedImports []string
+	var disallowedFunctions []string
 
 	var buffer bytes.Buffer
 	buffer.WriteString(`Run linting checks against Go code. Two groups of linters are executed, a "fast" group and a "slow" group. The fast group consists of `)
@@ -46,6 +48,8 @@ func main() {
 	cl.NewBoolOption(&fastOnly).SetSingle('f').SetName("fast-only").SetUsage("When set, only the fast linters are run")
 	cl.NewBoolOption(&onlyOne).SetSingle('1').SetName("one").SetUsage("When set, only the last started invocation for the repo will complete; any others will be terminated")
 	cl.NewBoolOption(&forceInstall).SetSingle('F').SetName("force-install").SetUsage("When set, the linters will be reinstalled")
+	cl.NewStringArrayOption(&disallowedImports).SetSingle('i').SetName("disallow-import").SetArg("import").SetUsage("Treat use of the specified import as an error. May be specified multiple times")
+	cl.NewStringArrayOption(&disallowedFunctions).SetSingle('d').SetName("disallow-function").SetArg("function").SetUsage("Treat use of the specified function as an error. May be specified multiple times")
 	cl.Parse(os.Args[1:])
 
 	selected := selectLinters(fastOnly)
@@ -54,7 +58,7 @@ func main() {
 			one.Install(true)
 		}
 	}
-	l, err := newLint(".", selected)
+	l, err := newLint(".", selected, disallowedImports, disallowedFunctions)
 	if err != nil {
 		fmt.Println(err)
 		atexit.Exit(1)
