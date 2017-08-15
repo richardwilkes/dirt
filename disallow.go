@@ -6,7 +6,6 @@ import (
 	"go/parser"
 	"go/token"
 	"strings"
-	"sync/atomic"
 )
 
 const disallowPrefix = "disallow"
@@ -50,6 +49,6 @@ func (l *lint) checkDisallowed() {
 		}
 	}
 	if hadIssue {
-		atomic.StoreInt32(&l.status, 1)
+		l.markError()
 	}
 }

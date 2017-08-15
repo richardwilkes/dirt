@@ -212,10 +212,7 @@ func (l *lint) execLinter(ctx context.Context, lntr linter) {
 		l.lineChan <- problem{prefix: prefix, output: err.Error()}
 		return
 	}
-	if err = cc.Wait(); err != nil {
-		atomic.StoreInt32(&l.status, 1)
-		return
-	}
+	cc.Wait() // Ignore error, as we only want to mark errors when info is logged
 	wg.Wait()
 }
 
@@ -259,5 +256,9 @@ func (l *lint) processLine(line problem) {
 		output += ":1:1:"
 	}
 	fmt.Printf("%s [%s]\n", output, line.prefix)
+	l.markError()
+}
+
+func (l *lint) markError() {
 	atomic.StoreInt32(&l.status, 1)
 }
