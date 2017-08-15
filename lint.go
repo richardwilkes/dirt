@@ -148,6 +148,9 @@ func (l *lint) collectPackagesAndFiles() error {
 	}); walkErr != nil {
 		return errs.Wrap(walkErr)
 	}
+	if len(l.files) == 0 {
+		return fmt.Errorf("No files to process")
+	}
 	l.pkgs = make([]string, 0, len(pkgMap))
 	l.dirs = make([]string, 0, len(pkgMap))
 	for pkg := range pkgMap {
