@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/nightlyone/lockfile"
@@ -54,15 +53,9 @@ func main() {
 	cl.Parse(os.Args[1:])
 
 	selected := selectLinters(fastOnly)
-	var wg sync.WaitGroup
 	for _, one := range selected {
-		wg.Add(1)
-		go func(which linter) {
-			defer wg.Done()
-			which.Install(forceInstall)
-		}(one)
+		one.Install(forceInstall)
 	}
-	wg.Wait()
 	if forceInstall {
 		atexit.Exit(0)
 	}
