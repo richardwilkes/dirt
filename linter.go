@@ -31,7 +31,6 @@ var (
 		{cmd: "errchk", args: []string{"-abspath", "-blank", "-asserts", "-ignore", "github.com/richardwilkes/errs:Append", PKGS}, pkg: "github.com/richardwilkes/errchk"},
 		{cmd: "interfacer", args: []string{PKGS}, pkg: "github.com/mvdan/interfacer/cmd/interfacer"},
 		{cmd: "unconvert", args: []string{PKGS}, pkg: "github.com/mdempsky/unconvert"},
-		{cmd: "structcheck", args: []string{PKGS}, pkg: "github.com/opennota/check/cmd/structcheck"},
 	}
 )
 
