@@ -29,7 +29,7 @@ var (
 	SlowLinters = []linter{
 		{cmd: "megacheck", args: []string{PKGS}, pkg: "honnef.co/go/tools/cmd/megacheck"},
 		{cmd: "errchk", args: []string{"-abspath", "-blank", "-asserts", "-ignore", "github.com/richardwilkes/errs:Append", PKGS}, pkg: "github.com/richardwilkes/errchk"},
-		{cmd: "interfacer", args: []string{PKGS}, pkg: "github.com/mvdan/interfacer/cmd/interfacer"},
+		{cmd: "interfacer", args: []string{PKGS}, pkg: "mvdan.cc/interfacer"},
 		{cmd: "unconvert", args: []string{PKGS}, pkg: "github.com/mdempsky/unconvert"},
 	}
 )
