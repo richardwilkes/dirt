@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/nightlyone/lockfile"
@@ -22,6 +23,7 @@ func main() {
 	fastOnly := false
 	onlyOne := false
 	forceInstall := false
+	parallel := false
 	var disallowedImports []string
 	var disallowedFunctions []string
 
@@ -50,6 +52,7 @@ func main() {
 	cl.NewBoolOption(&forceInstall).SetSingle('F').SetName("force-install").SetUsage("When set, the linters will be reinstalled, then the process will exit")
 	cl.NewStringArrayOption(&disallowedImports).SetSingle('i').SetName("disallow-import").SetArg("import").SetUsage("Treat use of the specified import as an error. May be specified multiple times")
 	cl.NewStringArrayOption(&disallowedFunctions).SetSingle('d').SetName("disallow-function").SetArg("function").SetUsage("Treat use of the specified function as an error. May be specified multiple times")
+	cl.NewBoolOption(&parallel).SetSingle('p').SetName("parallel").SetUsage("When set, run the linters in parallel")
 	cl.Parse(os.Args[1:])
 
 	selected := selectLinters(fastOnly)
@@ -60,7 +63,7 @@ func main() {
 		atexit.Exit(0)
 	}
 
-	l, err := newLint(".", selected, disallowedImports, disallowedFunctions)
+	l, err := newLint(".", selected, disallowedImports, disallowedFunctions, parallel)
 	if err != nil {
 		fmt.Println(err)
 		atexit.Exit(1)
@@ -75,11 +78,14 @@ func main() {
 		}
 		for lf.TryLock() != nil {
 			if p, err := lf.GetOwner(); err == nil {
-				p.Kill()
+				ignoreError(syscall.Kill(-p.Pid, syscall.SIGKILL))
 			}
 		}
-		atexit.Register(func() { lf.Unlock() })
+		atexit.Register(func() { ignoreError(lf.Unlock()) })
 	}
 
 	atexit.Exit(l.run(timeout))
+}
+
+func ignoreError(err error) {
 }

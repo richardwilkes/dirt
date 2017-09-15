@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/richardwilkes/errs"
 	"github.com/richardwilkes/fileutil"
+	"github.com/richardwilkes/taskqueue"
 )
 
 type lint struct {
@@ -31,6 +33,7 @@ type lint struct {
 	status              int32
 	lineChan            chan problem
 	doneChan            chan bool
+	parallel            bool
 }
 
 type problem struct {
@@ -38,13 +41,14 @@ type problem struct {
 	output string
 }
 
-func newLint(basePath string, lintersToRun []linter, disallowedImports, disallowedFunctions []string) (*lint, error) {
+func newLint(basePath string, lintersToRun []linter, disallowedImports, disallowedFunctions []string, parallel bool) (*lint, error) {
 	l := &lint{
 		linters:             lintersToRun,
 		disallowedImports:   disallowedImports,
 		disallowedFunctions: disallowedFunctions,
 		lineChan:            make(chan problem, 16),
 		doneChan:            make(chan bool),
+		parallel:            parallel,
 	}
 	if err := l.setupPaths(basePath); err != nil {
 		return nil, err
@@ -62,10 +66,18 @@ func (l *lint) run(timeout time.Duration) int {
 	if len(l.disallowedImports) > 0 || len(l.disallowedFunctions) > 0 {
 		l.checkDisallowed()
 	}
-	for _, one := range l.linters {
-		l.execLinter(ctx, one)
-		if ctx.Err() == context.DeadlineExceeded {
-			break
+	if l.parallel {
+		queue := taskqueue.New(taskqueue.Workers(runtime.NumCPU()), taskqueue.Log(l.logger))
+		for _, one := range l.linters {
+			queue.Submit(l.workFunc(ctx, one))
+		}
+		queue.Shutdown()
+	} else {
+		for _, one := range l.linters {
+			l.execLinter(ctx, one)
+			if ctx.Err() == context.DeadlineExceeded {
+				break
+			}
 		}
 	}
 	close(l.lineChan)
@@ -74,6 +86,16 @@ func (l *lint) run(timeout time.Duration) int {
 		fmt.Println("*** Timeout exceeded ***")
 	}
 	return int(l.status)
+}
+
+func (l *lint) logger(v ...interface{}) {
+	fmt.Println(v...)
+}
+
+func (l *lint) workFunc(ctx context.Context, lntr linter) func() {
+	return func() {
+		l.execLinter(ctx, lntr)
+	}
 }
 
 func (l *lint) setupPaths(basePath string) error {
@@ -211,7 +233,7 @@ func (l *lint) execLinter(ctx context.Context, lntr linter) {
 		l.lineChan <- problem{prefix: prefix, output: err.Error()}
 		return
 	}
-	cc.Wait() // Ignore error, as we only want to mark errors when info is logged
+	ignoreError(cc.Wait())
 	wg.Wait()
 }
 
