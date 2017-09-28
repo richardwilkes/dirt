@@ -69,6 +69,7 @@ func main() {
 		atexit.Exit(1)
 	}
 
+	go monitorRunningCmds()
 	if onlyOne {
 		path := filepath.Join(l.repoPath, ".dirtlock")
 		lf, err := lockfile.New(path)
@@ -78,10 +79,16 @@ func main() {
 		}
 		for lf.TryLock() != nil {
 			if p, err := lf.GetOwner(); err == nil {
-				ignoreError(syscall.Kill(-p.Pid, syscall.SIGKILL))
+				ignoreError(syscall.Kill(p.Pid, syscall.SIGINT))
 			}
+			time.Sleep(100 * time.Millisecond)
 		}
-		atexit.Register(func() { ignoreError(lf.Unlock()) })
+		atexit.Register(func() {
+			done := make(chan bool)
+			killRunningCmdsChan <- done
+			<-done
+			ignoreError(lf.Unlock())
+		})
 	}
 
 	atexit.Exit(l.run(timeout))

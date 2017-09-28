@@ -229,6 +229,10 @@ func (l *lint) execLinter(ctx context.Context, lntr linter) {
 	wg.Add(1)
 	go l.scanOutput(prefix, stderr, &wg)
 
+	addRunningCmdChan <- cc
+	defer func() {
+		removeRunningCmdChan <- cc
+	}()
 	if err = cc.Start(); err != nil {
 		l.lineChan <- problem{prefix: prefix, output: err.Error()}
 		return
