@@ -83,13 +83,13 @@ func (l *lint) run(timeout time.Duration) int {
 	close(l.lineChan)
 	<-l.doneChan
 	if l.status != 0 && ctx.Err() == context.DeadlineExceeded {
-		fmt.Println("*** Timeout exceeded ***")
+		fmt.Fprintln(os.Stderr, "*** Timeout exceeded ***")
 	}
 	return int(l.status)
 }
 
 func (l *lint) logger(v ...interface{}) {
-	fmt.Println(v...)
+	fmt.Fprintln(os.Stderr, v...)
 }
 
 func (l *lint) workFunc(ctx context.Context, lntr linter) func() {
@@ -280,7 +280,7 @@ func (l *lint) processLine(line problem) {
 	if !strings.Contains(output, ":") {
 		output += ":1:1:"
 	}
-	fmt.Printf("%s [%s]\n", output, line.prefix)
+	fmt.Fprintf(os.Stderr, "%s [%s]\n", output, line.prefix)
 	l.markError()
 }
 

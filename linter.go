@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 
 	"github.com/richardwilkes/atexit"
@@ -57,8 +58,8 @@ func (lntr *linter) Install(force bool) {
 		}
 		cmd := exec.Command("go", "get", "-u", lntr.pkg)
 		if data, err := cmd.CombinedOutput(); err != nil {
-			fmt.Println("Unable to install", lntr.Name())
-			fmt.Println(string(data))
+			fmt.Fprintln(os.Stderr, "Unable to install", lntr.Name())
+			fmt.Fprintln(os.Stderr, string(data))
 			atexit.Exit(1)
 		}
 		fmt.Println("Installed", lntr.Name())

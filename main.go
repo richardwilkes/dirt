@@ -65,7 +65,7 @@ func main() {
 
 	l, err := newLint(".", selected, disallowedImports, disallowedFunctions, parallel)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		atexit.Exit(1)
 	}
 
@@ -74,7 +74,7 @@ func main() {
 		path := filepath.Join(l.repoPath, ".dirtlock")
 		lf, err := lockfile.New(path)
 		if err != nil {
-			fmt.Println("Unable to obtain lock file: ", path)
+			fmt.Fprintln(os.Stderr, "Unable to obtain lock file: ", path)
 			atexit.Exit(1)
 		}
 		for lf.TryLock() != nil {
