@@ -22,12 +22,14 @@ func (l *lint) checkDisallowed() {
 	hadIssue := false
 	for _, one := range l.files {
 		fset := token.NewFileSet()
-		if f, err := parser.ParseFile(fset, one, nil, 0); err == nil {
+		if f, err := parser.ParseFile(fset, one, nil, parser.ParseComments); err == nil {
 			if len(disallowedImports) > 0 {
 				for _, imp := range f.Imports {
 					if disallowedImports[strings.Trim(imp.Path.Value, `"`)] {
-						hadIssue = true
-						l.lineChan <- problem{prefix: disallowPrefix, output: fmt.Sprintf("%v: Import of %s not allowed", fset.Position(imp.Pos()), imp.Path.Value)}
+						if imp.Comment == nil || !strings.Contains(imp.Comment.Text(), "@allow") {
+							hadIssue = true
+							l.lineChan <- problem{prefix: disallowPrefix, output: fmt.Sprintf("%v: Import of %s not allowed", fset.Position(imp.Pos()), imp.Path.Value)}
+						}
 					}
 				}
 			}
@@ -35,11 +37,22 @@ func (l *lint) checkDisallowed() {
 				ast.Inspect(f, func(node ast.Node) bool {
 					switch x := node.(type) {
 					case *ast.CallExpr:
+						var name string
+						var pos token.Pos
 						switch c := x.Fun.(type) {
 						case *ast.Ident:
-							if disallowedFunctions[c.Name] {
+							name = c.Name
+							pos = c.Pos()
+						case *ast.SelectorExpr:
+							if sx, ok := c.X.(*ast.Ident); ok {
+								name = sx.Name + "."
+							}
+							name += c.Sel.Name
+						}
+						if name != "" {
+							if disallowedFunctions[name] {
 								hadIssue = true
-								l.lineChan <- problem{prefix: disallowPrefix, output: fmt.Sprintf(`%v: Use of "%s" not allowed`, fset.Position(c.Pos()), c.Name)}
+								l.lineChan <- problem{prefix: disallowPrefix, output: fmt.Sprintf(`%v: Use of "%s" not allowed`, fset.Position(pos), name)}
 							}
 						}
 					}
