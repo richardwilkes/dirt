@@ -15,9 +15,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/richardwilkes/gokit/errs"
-	"github.com/richardwilkes/gokit/taskqueue"
-	"github.com/richardwilkes/gokit/xio/fs"
+	"github.com/richardwilkes/toolbox/errs"
+	"github.com/richardwilkes/toolbox/taskqueue"
+	"github.com/richardwilkes/toolbox/xio/fs"
 )
 
 type lint struct {
