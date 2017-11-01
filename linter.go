@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/richardwilkes/atexit"
+	"github.com/richardwilkes/gokit/atexit"
 )
 
 // Argument substitution constants

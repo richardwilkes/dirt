@@ -15,9 +15,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/richardwilkes/errs"
-	"github.com/richardwilkes/fileutil"
-	"github.com/richardwilkes/taskqueue"
+	"github.com/richardwilkes/gokit/errs"
+	"github.com/richardwilkes/gokit/taskqueue"
+	"github.com/richardwilkes/gokit/xio/fs"
 )
 
 type lint struct {
@@ -117,7 +117,7 @@ func (l *lint) setupPaths(basePath string) error {
 	if l.goSrcPath, err = filepath.Abs(filepath.Join(l.goSrcPath, "src")); err != nil {
 		return errs.Wrap(err)
 	}
-	if !fileutil.IsDir(l.goSrcPath) {
+	if !fs.IsDir(l.goSrcPath) {
 		return fmt.Errorf("Invalid Go src path: %s", l.goSrcPath)
 	}
 	if _, err = filepath.Rel(l.goSrcPath, l.origPath); err != nil {
@@ -130,7 +130,7 @@ func (l *lint) setupPaths(basePath string) error {
 			l.repoPath = l.origPath
 			break
 		}
-		if fileutil.IsDir(filepath.Join(l.repoPath, ".git")) {
+		if fs.IsDir(filepath.Join(l.repoPath, ".git")) {
 			break
 		}
 		l.repoPath = filepath.Dir(l.repoPath)

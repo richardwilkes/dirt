@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/nightlyone/lockfile"
-	"github.com/richardwilkes/atexit"
-	"github.com/richardwilkes/cmdline"
+	"github.com/richardwilkes/gokit/atexit"
+	"github.com/richardwilkes/gokit/cmdline"
 )
 
 func main() {
