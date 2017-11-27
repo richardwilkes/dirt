@@ -257,6 +257,9 @@ func (l *lint) processLine(line problem) {
 	if strings.HasPrefix(output, "vendor") {
 		return
 	}
+	if strings.Contains(output, "@allow") {
+		return
+	}
 	if strings.Contains(output, "(SA3000)") {
 		return
 	}
