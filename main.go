@@ -1,10 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -27,7 +27,7 @@ func main() {
 	var disallowedImports []string
 	var disallowedFunctions []string
 
-	var buffer bytes.Buffer
+	var buffer strings.Builder
 	buffer.WriteString(`Run linting checks against Go code. Two groups of linters are executed, a "fast" group and a "slow" group. The fast group consists of `)
 	for i, one := range FastLinters {
 		if i != 0 {
