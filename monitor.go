@@ -16,7 +16,7 @@ func monitorRunningCmds() {
 			delete(runningCmds, cmd)
 		case done := <-killRunningCmdsChan:
 			for k := range runningCmds {
-				ignoreError(k.Process.Kill())
+				k.Process.Kill() // @allow
 			}
 			done <- true
 		}

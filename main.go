@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -15,15 +16,19 @@ import (
 
 func main() {
 	cmdline.AppName = "Dirt"
-	cmdline.AppVersion = "1.0"
-	cmdline.CopyrightYears = "2017"
+	cmdline.AppVersion = "1.1"
+	cmdline.CopyrightYears = "2017-2018"
 	cmdline.CopyrightHolder = "Richard A. Wilkes"
 
 	timeout := 5 * time.Minute
 	fastOnly := false
 	onlyOne := false
 	forceInstall := false
+	archive := false
+	var installFrom string
 	parallel := false
+	goos := runtime.GOOS
+	goarch := runtime.GOARCH
 	var disallowedImports []string
 	var disallowedFunctions []string
 
@@ -50,10 +55,30 @@ func main() {
 	cl.NewBoolOption(&fastOnly).SetSingle('f').SetName("fast-only").SetUsage("When set, only the fast linters are run")
 	cl.NewBoolOption(&onlyOne).SetSingle('1').SetName("one").SetUsage("When set, only the last started invocation for the repo will complete; any others will be terminated")
 	cl.NewBoolOption(&forceInstall).SetSingle('F').SetName("force-install").SetUsage("When set, the linters will be reinstalled, then the process will exit")
+	cl.NewStringOption(&installFrom).SetName("install-from-archive").SetArg("url or path").SetUsage("When set, the linters will be installed by extracting them from the specified archive instead of building it from source, then the process will exit")
+	cl.NewBoolOption(&archive).SetName("archive").SetUsage("When set, creates an archive containing the linters that can be used later with --install-from-archive, then exits")
+	cl.NewStringOption(&goos).SetName("os").SetUsage("The GOOS value to use with the --archive option")
+	cl.NewStringOption(&goarch).SetName("arch").SetUsage("The GOARCH value to use with the --archive option")
 	cl.NewStringArrayOption(&disallowedImports).SetSingle('i').SetName("disallow-import").SetArg("import").SetUsage("Treat use of the specified import as an error. May be specified multiple times")
 	cl.NewStringArrayOption(&disallowedFunctions).SetSingle('d').SetName("disallow-function").SetArg("function").SetUsage("Treat use of the specified function as an error. May be specified multiple times")
 	cl.NewBoolOption(&parallel).SetSingle('p').SetName("parallel").SetUsage("When set, run the linters in parallel")
 	cl.Parse(os.Args[1:])
+
+	if archive {
+		if err := Archive(goos, goarch); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			atexit.Exit(1)
+		}
+		atexit.Exit(0)
+	}
+
+	if installFrom != "" {
+		if err := InstallFromArchive(installFrom); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			atexit.Exit(1)
+		}
+		atexit.Exit(0)
+	}
 
 	selected := selectLinters(fastOnly)
 	for _, one := range selected {
@@ -79,7 +104,7 @@ func main() {
 		}
 		for lf.TryLock() != nil {
 			if p, err := lf.GetOwner(); err == nil {
-				ignoreError(syscall.Kill(p.Pid, syscall.SIGINT))
+				syscall.Kill(p.Pid, syscall.SIGINT) // @allow
 			}
 			time.Sleep(100 * time.Millisecond)
 		}
@@ -87,12 +112,9 @@ func main() {
 			done := make(chan bool)
 			killRunningCmdsChan <- done
 			<-done
-			ignoreError(lf.Unlock())
+			lf.Unlock() // @allow
 		})
 	}
 
 	atexit.Exit(l.run(timeout))
-}
-
-func ignoreError(err error) {
 }

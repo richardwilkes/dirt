@@ -2,11 +2,13 @@ version: "1.0"
 dependencies:
 - import: github.com/kardianos/osext
   commit: ae77be60afb1dcacde03767a8c37337fad28ac14
+- import: github.com/mitchellh/go-homedir
+  commit: b8bc1bf767474819792c23f32d8286a45736f1c6
 - import: github.com/nightlyone/lockfile
   commit: 6a197d5ea61168f2ac821de2b7f011b250904900
 - import: github.com/pkg/term
   commit: b1f72af2d63057363398bec5873d16a98b453312
 - import: github.com/richardwilkes/toolbox
-  commit: 44921fe947edaad6f9401f11c6d45b75ee1baf96
+  commit: 59b616e181f74060529d69fcaa124ed613d1904e
 - import: gopkg.in/yaml.v2
   tag: v2.1.1

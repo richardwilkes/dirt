@@ -237,7 +237,7 @@ func (l *lint) execLinter(ctx context.Context, lntr linter) {
 		l.lineChan <- problem{prefix: prefix, output: err.Error()}
 		return
 	}
-	ignoreError(cc.Wait())
+	cc.Wait() // @allow
 	wg.Wait()
 }
 
