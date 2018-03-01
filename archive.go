@@ -133,6 +133,7 @@ func InstallFromArchive(url string) error {
 				if err = copyFileFromZip(f, filepath.Join(path, linter.cmd)); err != nil {
 					return err
 				}
+				fmt.Println("Installed", linter.Name(), "from archive")
 				break
 			}
 		}
