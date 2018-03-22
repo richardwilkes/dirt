@@ -51,8 +51,18 @@ func (l *lint) checkDisallowed() {
 						}
 						if name != "" {
 							if disallowedFunctions[name] {
-								hadIssue = true
-								l.lineChan <- problem{prefix: disallowPrefix, output: fmt.Sprintf(`%v: Use of "%s" not allowed`, fset.Position(pos), name)}
+								line := fset.Position(pos).Line
+								ignore := false
+								for _, one := range f.Comments {
+									if line == fset.Position(one.Pos()).Line && strings.Contains(one.Text(), "@allow") {
+										ignore = true
+										break
+									}
+								}
+								if !ignore {
+									hadIssue = true
+									l.lineChan <- problem{prefix: disallowPrefix, output: fmt.Sprintf(`%v: Use of "%s" not allowed`, fset.Position(pos), name)}
+								}
 							}
 						}
 					}
