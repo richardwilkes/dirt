@@ -9,6 +9,6 @@ dependencies:
 - import: github.com/pkg/term
   commit: b1f72af2d63057363398bec5873d16a98b453312
 - import: github.com/richardwilkes/toolbox
-  commit: 59b616e181f74060529d69fcaa124ed613d1904e
+  commit: 418876f404bd0a40f49d24a8bd1852bfc6d70cce
 - import: gopkg.in/yaml.v2
   tag: v2.1.1
