@@ -24,6 +24,7 @@ type lint struct {
 	origPath            string
 	goSrcPath           string
 	repoPath            string
+	outsideGoPath       bool
 	pkgs                []string
 	dirs                []string
 	files               []string
@@ -125,6 +126,7 @@ func (l *lint) setupPaths(basePath string) error {
 	}
 
 	l.repoPath = l.origPath
+	pathSeparator := string([]rune{os.PathSeparator})
 	for {
 		if l.repoPath == l.goSrcPath {
 			l.repoPath = l.origPath
@@ -134,11 +136,20 @@ func (l *lint) setupPaths(basePath string) error {
 			break
 		}
 		l.repoPath = filepath.Dir(l.repoPath)
+		if strings.HasSuffix(l.repoPath, pathSeparator) {
+			l.repoPath = l.origPath
+			break
+		}
 	}
+	l.outsideGoPath = !strings.HasPrefix(filepath.Clean(l.repoPath), filepath.Clean(l.goSrcPath))
 	return nil
 }
 
 func (l *lint) collectPackagesAndFiles() error {
+	base := l.goSrcPath
+	if l.outsideGoPath {
+		base = l.repoPath
+	}
 	pkgMap := make(map[string]bool)
 	if walkErr := filepath.Walk(l.repoPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -159,7 +170,7 @@ func (l *lint) collectPackagesAndFiles() error {
 			return nil
 		}
 		if strings.HasSuffix(name, ".go") {
-			pkg, relErr := filepath.Rel(l.goSrcPath, filepath.Dir(path))
+			pkg, relErr := filepath.Rel(base, filepath.Dir(path))
 			if relErr != nil {
 				return nil
 			}
@@ -177,7 +188,7 @@ func (l *lint) collectPackagesAndFiles() error {
 	l.dirs = make([]string, 0, len(pkgMap))
 	for pkg := range pkgMap {
 		l.pkgs = append(l.pkgs, pkg)
-		l.dirs = append(l.dirs, filepath.Join(l.goSrcPath, pkg))
+		l.dirs = append(l.dirs, filepath.Join(base, pkg))
 	}
 	return nil
 }
