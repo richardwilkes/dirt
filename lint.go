@@ -187,7 +187,11 @@ func (l *lint) collectPackagesAndFiles() error {
 	l.pkgs = make([]string, 0, len(pkgMap))
 	l.dirs = make([]string, 0, len(pkgMap))
 	for pkg := range pkgMap {
-		l.pkgs = append(l.pkgs, pkg)
+		if l.outsideGoPath {
+			l.pkgs = append(l.pkgs, fmt.Sprintf(".%c%s", filepath.Separator, pkg))
+		} else {
+			l.pkgs = append(l.pkgs, pkg)
+		}
 		l.dirs = append(l.dirs, filepath.Join(base, pkg))
 	}
 	return nil
