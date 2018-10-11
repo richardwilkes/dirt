@@ -21,7 +21,7 @@ var (
 	FastLinters = []linter{
 		{cmd: "gofmt", args: []string{"-l", "-s", FILES}},
 		{cmd: "goimports", args: []string{"-l", FILES}, pkg: "golang.org/x/tools/cmd/goimports"},
-		{cmd: "golint", args: []string{PKGS}, pkg: "github.com/golang/lint/golint"},
+		{cmd: "golint", args: []string{PKGS}, pkg: "golang.org/x/lint/golint"},
 		{cmd: "ineffassign", args: []string{REPO}, pkg: "github.com/gordonklaus/ineffassign"},
 		{cmd: "misspell", args: []string{"-locale", "US", FILES}, pkg: "github.com/client9/misspell/cmd/misspell"},
 		{cmd: "go", args: []string{"tool", "vet", "-all", "-shadow", DIRS}},
