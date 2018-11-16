@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/nightlyone/lockfile"
@@ -104,7 +103,7 @@ func main() {
 		}
 		for lf.TryLock() != nil {
 			if p, err := lf.GetOwner(); err == nil {
-				syscall.Kill(p.Pid, syscall.SIGINT) // @allow
+				kill(p) // @allow
 			}
 			time.Sleep(100 * time.Millisecond)
 		}
