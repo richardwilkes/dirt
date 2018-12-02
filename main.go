@@ -18,6 +18,7 @@ func main() {
 	cmdline.AppVersion = "1.1"
 	cmdline.CopyrightYears = "2017-2018"
 	cmdline.CopyrightHolder = "Richard A. Wilkes"
+	cmdline.AppIdentifier = "com.trollworks.dirt"
 
 	timeout := 5 * time.Minute
 	fastOnly := false
@@ -87,7 +88,7 @@ func main() {
 		atexit.Exit(0)
 	}
 
-	l, err := newLint(".", selected, disallowedImports, disallowedFunctions, parallel)
+	l, err := newLint(selected, disallowedImports, disallowedFunctions, parallel)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		atexit.Exit(1)

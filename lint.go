@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -17,14 +16,11 @@ import (
 
 	"github.com/richardwilkes/toolbox/errs"
 	"github.com/richardwilkes/toolbox/taskqueue"
-	"github.com/richardwilkes/toolbox/xio/fs"
 )
 
 type lint struct {
 	origPath            string
-	goSrcPath           string
 	repoPath            string
-	outsideGoPath       bool
 	pkgs                []string
 	dirs                []string
 	files               []string
@@ -42,7 +38,7 @@ type problem struct {
 	output string
 }
 
-func newLint(basePath string, lintersToRun []linter, disallowedImports, disallowedFunctions []string, parallel bool) (*lint, error) {
+func newLint(lintersToRun []linter, disallowedImports, disallowedFunctions []string, parallel bool) (*lint, error) {
 	l := &lint{
 		linters:             lintersToRun,
 		disallowedImports:   disallowedImports,
@@ -51,10 +47,15 @@ func newLint(basePath string, lintersToRun []linter, disallowedImports, disallow
 		doneChan:            make(chan bool),
 		parallel:            parallel,
 	}
-	if err := l.setupPaths(basePath); err != nil {
-		return nil, err
+	var err error
+	if l.origPath, err = filepath.Abs("."); err != nil {
+		return nil, errs.Wrap(err)
 	}
-	if err := l.collectPackagesAndFiles(); err != nil {
+	l.repoPath = findRoot(".")
+	if err = os.Chdir(l.repoPath); err != nil {
+		return nil, errs.Wrap(err)
+	}
+	if err = l.collectPackagesAndFiles(); err != nil {
 		return nil, err
 	}
 	return l, nil
@@ -99,100 +100,22 @@ func (l *lint) workFunc(ctx context.Context, lntr linter) func() {
 	}
 }
 
-func (l *lint) setupPaths(basePath string) error {
-	var err error
-	if l.origPath, err = filepath.Abs(basePath); err != nil {
-		return errs.Wrap(err)
-	}
-
-	l.goSrcPath = os.Getenv("GOPATH")
-	if l.goSrcPath == "" {
-		var usr *user.User
-		if usr, err = user.Current(); err != nil {
-			return errs.Wrap(err)
-		}
-		l.goSrcPath = filepath.Join(usr.HomeDir, "go")
-	} else {
-		l.goSrcPath = filepath.SplitList(l.goSrcPath)[0]
-	}
-	if l.goSrcPath, err = filepath.Abs(filepath.Join(l.goSrcPath, "src")); err != nil {
-		return errs.Wrap(err)
-	}
-	if !fs.IsDir(l.goSrcPath) {
-		return fmt.Errorf("Invalid Go src path: %s", l.goSrcPath)
-	}
-	if _, err = filepath.Rel(l.goSrcPath, l.origPath); err != nil {
-		return errs.Wrap(err)
-	}
-
-	l.repoPath = l.origPath
-	pathSeparator := string([]rune{os.PathSeparator})
-	for {
-		if l.repoPath == l.goSrcPath {
-			l.repoPath = l.origPath
-			break
-		}
-		if fs.IsDir(filepath.Join(l.repoPath, ".git")) {
-			break
-		}
-		l.repoPath = filepath.Dir(l.repoPath)
-		if strings.HasSuffix(l.repoPath, pathSeparator) {
-			l.repoPath = l.origPath
-			break
-		}
-	}
-	l.outsideGoPath = !strings.HasPrefix(filepath.Clean(l.repoPath), filepath.Clean(l.goSrcPath))
-	return nil
-}
-
 func (l *lint) collectPackagesAndFiles() error {
-	base := l.goSrcPath
-	if l.outsideGoPath {
-		base = l.repoPath
+	var err error
+	l.pkgs, err = listPackages()
+	if err != nil {
+		return err
 	}
-	pkgMap := make(map[string]bool)
-	if walkErr := filepath.Walk(l.repoPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		name := info.Name()
-		if strings.HasPrefix(name, "_") || strings.HasPrefix(name, ".") {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		name = strings.ToLower(name)
-		if name == "vendor" || name == "testdata" {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if strings.HasSuffix(name, ".go") {
-			pkg, relErr := filepath.Rel(base, filepath.Dir(path))
-			if relErr != nil {
-				return nil
-			}
-			pkgMap[pkg] = true
-			l.files = append(l.files, path)
-		}
-		return nil
-	}); walkErr != nil {
-		return errs.Wrap(walkErr)
+	l.dirs, err = listDirs()
+	if err != nil {
+		return err
+	}
+	l.files, err = listFiles()
+	if err != nil {
+		return err
 	}
 	if len(l.files) == 0 {
 		return fmt.Errorf("No files to process")
-	}
-	l.pkgs = make([]string, 0, len(pkgMap))
-	l.dirs = make([]string, 0, len(pkgMap))
-	for pkg := range pkgMap {
-		if l.outsideGoPath {
-			l.pkgs = append(l.pkgs, fmt.Sprintf(".%c%s", filepath.Separator, pkg))
-		} else {
-			l.pkgs = append(l.pkgs, pkg)
-		}
-		l.dirs = append(l.dirs, filepath.Join(base, pkg))
 	}
 	return nil
 }
