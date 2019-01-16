@@ -16,7 +16,7 @@ import (
 func main() {
 	cmdline.AppName = "Dirt"
 	cmdline.AppVersion = "1.2.1"
-	cmdline.CopyrightYears = "2017-2018"
+	cmdline.CopyrightYears = "2017-2019"
 	cmdline.CopyrightHolder = "Richard A. Wilkes"
 	cmdline.AppIdentifier = "com.trollworks.dirt"
 
