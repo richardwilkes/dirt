@@ -16,6 +16,7 @@ import (
 
 	"github.com/richardwilkes/toolbox/errs"
 	"github.com/richardwilkes/toolbox/taskqueue"
+	"github.com/richardwilkes/toolbox/xio"
 )
 
 type lint struct {
@@ -31,6 +32,7 @@ type lint struct {
 	lineChan            chan problem
 	doneChan            chan bool
 	parallel            bool
+	dryRun              bool
 }
 
 type problem struct {
@@ -38,7 +40,7 @@ type problem struct {
 	output string
 }
 
-func newLint(lintersToRun []linter, disallowedImports, disallowedFunctions []string, parallel bool) (*lint, error) {
+func newLint(lintersToRun []linter, disallowedImports, disallowedFunctions []string, parallel, dryRun bool) (*lint, error) {
 	l := &lint{
 		linters:             lintersToRun,
 		disallowedImports:   disallowedImports,
@@ -46,6 +48,7 @@ func newLint(lintersToRun []linter, disallowedImports, disallowedFunctions []str
 		lineChan:            make(chan problem, 16),
 		doneChan:            make(chan bool),
 		parallel:            parallel,
+		dryRun:              dryRun,
 	}
 	var err error
 	if l.origPath, err = filepath.Abs("."); err != nil {
@@ -147,36 +150,48 @@ func (l *lint) parseLines() {
 }
 
 func (l *lint) execLinter(ctx context.Context, lntr linter) {
-	prefix := lntr.Name()
-	cc := exec.CommandContext(ctx, lntr.cmd, l.argSubstitution(lntr)...)
+	if l.dryRun {
+		var buffer strings.Builder
+		buffer.WriteString(lntr.cmd)
+		for _, one := range l.argSubstitution(lntr) {
+			buffer.WriteString(" ")
+			buffer.WriteString(one)
+		}
+		l.lineChan <- problem{output: buffer.String()}
+	} else {
+		prefix := lntr.Name()
+		cc := exec.CommandContext(ctx, lntr.cmd, l.argSubstitution(lntr)...)
 
-	stdout, err := cc.StdoutPipe()
-	if err != nil {
-		l.lineChan <- problem{prefix: prefix, output: err.Error()}
-		return
-	}
-	stderr, err := cc.StderrPipe()
-	if err != nil {
-		l.lineChan <- problem{prefix: prefix, output: err.Error()}
-		return
-	}
+		stdout, err := cc.StdoutPipe()
+		if err != nil {
+			l.lineChan <- problem{prefix: prefix, output: err.Error()}
+			return
+		}
+		stderr, err := cc.StderrPipe()
+		if err != nil {
+			l.lineChan <- problem{prefix: prefix, output: err.Error()}
+			return
+		}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go l.scanOutput(prefix, stdout, &wg)
-	wg.Add(1)
-	go l.scanOutput(prefix, stderr, &wg)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go l.scanOutput(prefix, stdout, &wg)
+		wg.Add(1)
+		go l.scanOutput(prefix, stderr, &wg)
 
-	addRunningCmdChan <- cc
-	defer func() {
-		removeRunningCmdChan <- cc
-	}()
-	if err = cc.Start(); err != nil {
-		l.lineChan <- problem{prefix: prefix, output: err.Error()}
-		return
+		addRunningCmdChan <- cc
+		defer func() {
+			removeRunningCmdChan <- cc
+		}()
+		if err = cc.Start(); err != nil {
+			xio.CloseIgnoringErrors(stdout)
+			xio.CloseIgnoringErrors(stderr)
+			l.lineChan <- problem{prefix: prefix, output: err.Error()}
+			return
+		}
+		cc.Wait() // @allow
+		wg.Wait()
 	}
-	cc.Wait() // @allow
-	wg.Wait()
 }
 
 func (l *lint) scanOutput(prefix string, r io.Reader, wg *sync.WaitGroup) {
@@ -188,41 +203,45 @@ func (l *lint) scanOutput(prefix string, r io.Reader, wg *sync.WaitGroup) {
 }
 
 func (l *lint) processLine(line problem) {
-	output := strings.TrimSpace(line.output)
-	if output == "" {
-		return
-	}
-	if strings.HasPrefix(output, "vendor") {
-		return
-	}
-	if strings.Contains(output, "@allow") {
-		return
-	}
-	if strings.Contains(output, "(SA3000)") {
-		return
-	}
-	if strings.Contains(output, ".pb.go") {
-		return
-	}
-	if strings.Contains(output, "mock_grpc") {
-		return
-	}
-	if strings.Contains(output, "couldn't load packages due to errors:") {
-		return
-	}
-	if strings.HasPrefix(output, line.prefix+": ") {
-		output = output[len(line.prefix)+2:]
-	}
-	if filepath.IsAbs(output) {
-		if replacement, err := filepath.Rel(l.origPath, output); err == nil {
-			output = replacement
+	if l.dryRun {
+		fmt.Fprintln(os.Stderr, line.output)
+	} else {
+		output := strings.TrimSpace(line.output)
+		if output == "" {
+			return
 		}
+		if strings.HasPrefix(output, "vendor") {
+			return
+		}
+		if strings.Contains(output, "@allow") {
+			return
+		}
+		if strings.Contains(output, "(SA3000)") {
+			return
+		}
+		if strings.Contains(output, ".pb.go") {
+			return
+		}
+		if strings.Contains(output, "mock_grpc") {
+			return
+		}
+		if strings.Contains(output, "couldn't load packages due to errors:") {
+			return
+		}
+		if strings.HasPrefix(output, line.prefix+": ") {
+			output = output[len(line.prefix)+2:]
+		}
+		if filepath.IsAbs(output) {
+			if replacement, err := filepath.Rel(l.origPath, output); err == nil {
+				output = replacement
+			}
+		}
+		if !strings.Contains(output, ":") {
+			output += ":1:1:"
+		}
+		fmt.Fprintf(os.Stderr, "%s [%s]\n", output, line.prefix)
+		l.markError()
 	}
-	if !strings.Contains(output, ":") {
-		output += ":1:1:"
-	}
-	fmt.Fprintf(os.Stderr, "%s [%s]\n", output, line.prefix)
-	l.markError()
 }
 
 func (l *lint) markError() {

@@ -15,7 +15,7 @@ import (
 
 func main() {
 	cmdline.AppName = "Dirt"
-	cmdline.AppVersion = "1.1.1"
+	cmdline.AppVersion = "1.2"
 	cmdline.CopyrightYears = "2017-2018"
 	cmdline.CopyrightHolder = "Richard A. Wilkes"
 	cmdline.AppIdentifier = "com.trollworks.dirt"
@@ -27,6 +27,7 @@ func main() {
 	archive := false
 	var installFrom string
 	parallel := false
+	dryRun := false
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
 	var disallowedImports []string
@@ -62,6 +63,7 @@ func main() {
 	cl.NewStringArrayOption(&disallowedImports).SetSingle('i').SetName("disallow-import").SetArg("import").SetUsage("Treat use of the specified import as an error. May be specified multiple times")
 	cl.NewStringArrayOption(&disallowedFunctions).SetSingle('d').SetName("disallow-function").SetArg("function").SetUsage("Treat use of the specified function as an error. May be specified multiple times")
 	cl.NewBoolOption(&parallel).SetSingle('p').SetName("parallel").SetUsage("When set, run the linters in parallel")
+	cl.NewBoolOption(&dryRun).SetSingle('n').SetName("dry-run").SetUsage("When set, just print the commands that would be issued and then exit")
 	cl.Parse(os.Args[1:])
 
 	if archive {
@@ -88,7 +90,7 @@ func main() {
 		atexit.Exit(0)
 	}
 
-	l, err := newLint(selected, disallowedImports, disallowedFunctions, parallel)
+	l, err := newLint(selected, disallowedImports, disallowedFunctions, parallel, dryRun)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		atexit.Exit(1)
