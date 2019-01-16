@@ -28,8 +28,8 @@ var (
 	}
 	// SlowLinters holds the linters that are known to execute slowly.
 	SlowLinters = []linter{
-		{cmd: "megacheck", args: []string{PKGS}, pkg: "honnef.co/go/tools/cmd/megacheck"},
-		{cmd: "errchk", args: []string{"-abspath", "-blank", "-asserts", "-ignore", "github.com/richardwilkes/errs:Append", "-ignore", "github.com/richardwilkes/toolbox/errs:Append", "-ignore", "io:CloseWithError", PKGS}, pkg: "github.com/richardwilkes/errchk"},
+		{cmd: "staticcheck", args: []string{"-checks", "all,-ST1005", PKGS}, pkg: "honnef.co/go/tools/cmd/staticcheck"},
+		{cmd: "errcheck", args: []string{"-abspath", "-blank", "-asserts", "-ignore", "github.com/richardwilkes/errs:Append", "-ignore", "github.com/richardwilkes/toolbox/errs:Append", "-ignore", "io:CloseWithError", PKGS}, pkg: "github.com/kisielk/errcheck"},
 		{cmd: "interfacer", args: []string{PKGS}, pkg: "mvdan.cc/interfacer"},
 		{cmd: "unconvert", args: []string{PKGS}, pkg: "github.com/mdempsky/unconvert"},
 	}
