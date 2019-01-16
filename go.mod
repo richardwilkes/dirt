@@ -3,5 +3,8 @@ module github.com/richardwilkes/dirt
 require (
 	github.com/mitchellh/go-homedir v1.0.0
 	github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443
-	github.com/richardwilkes/toolbox v1.0.3
+	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942 // indirect
+	github.com/richardwilkes/toolbox v1.1.4
+	github.com/stretchr/testify v1.3.0 // indirect
+	golang.org/x/sys v0.0.0-20190116161447-11f53e031339 // indirect
 )
