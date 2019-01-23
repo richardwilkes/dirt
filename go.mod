@@ -6,5 +6,5 @@ require (
 	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942 // indirect
 	github.com/richardwilkes/toolbox v1.1.4
 	github.com/stretchr/testify v1.3.0 // indirect
-	golang.org/x/sys v0.0.0-20190116161447-11f53e031339 // indirect
+	golang.org/x/sys v0.0.0-20190123074212-c6b37f3e9285 // indirect
 )

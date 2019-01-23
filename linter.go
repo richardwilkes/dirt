@@ -30,7 +30,6 @@ var (
 	SlowLinters = []linter{
 		{cmd: "staticcheck", args: []string{"-checks", "all,-ST1000,-ST1005", PKGS}, pkg: "honnef.co/go/tools/cmd/staticcheck"},
 		{cmd: "errcheck", args: []string{"-abspath", "-blank", "-asserts", "-ignore", "github.com/richardwilkes/errs:Append", "-ignore", "github.com/richardwilkes/toolbox/errs:Append", "-ignore", "io:CloseWithError", PKGS}, pkg: "github.com/kisielk/errcheck"},
-		{cmd: "interfacer", args: []string{PKGS}, pkg: "mvdan.cc/interfacer"},
 		{cmd: "unconvert", args: []string{PKGS}, pkg: "github.com/mdempsky/unconvert"},
 	}
 )
